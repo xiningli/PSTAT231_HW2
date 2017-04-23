@@ -1,0 +1,351 @@
+---
+title: "Homework 2"
+author: "PSTAT 131/231, Spring 2017"
+date: "__Due on April 25th, 2017 at 11:59 pm__"
+graphics: yes
+geometry: margin=0.75in
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE, 
+                      cache=TRUE, 
+                      fig.width=5, 
+                      fig.height=5,
+                      fig.align='center')
+indent1 = '    '      
+indent2 = paste(rep(indent1, 2), collapse='')
+solcode = TRUE
+r = function(x, digits=2){ round(x, digits=digits) }
+```
+
+1. **Image compression with PCA**
+
+    Bitmap image can be read in via the following command:
+
+```{r readbitmap,indent=indent1}
+# install.packages('bmp')
+library(bmp)
+img = read.bmp('image1.bmp')
+img = t(img[ncol(img):1,])      # fix orientation
+img = img - mean(img)           # subtract overall mean
+```
+
+    Plot the image in grayscale:
+
+```{r plot-bitmap,indent=indent1}
+gs = grey((0:255)/255)
+image(img, asp=1, col=gs, yaxs='r', xaxt='n', yaxt='n')
+```
+
+    #. We know that using syntax `??[keyword]`, help pages can be searched for
+    any pages with `keyword` in it.
+    
+        If there are same function names in multiple packages, a package can be specified by 
+        \begin{center}
+            \tt{?PackageName::FunctionName}
+        \end{center}
+        Using this method, find what the keyword `xaxt` and `yaxt` does in the
+        above `image()` function by looking up the appropriate help page. [4]
+        
+
+```{r,indent=indent1}
+?graphics::par
+```
+    #. Compute principal components using `prcomp()` and use `str()` function
+    to inspect function output. [4]
+
+    
+    #. Recall that principal components were linear combination of data
+    columns. 
+        $$ Z_i = \phi_{i1} X_1 + \phi_{i2} X_2 + \dots + \phi_{ip} X_p. $$
+        Verify that this is true by multiplying data matrix (original bitmap
+        image `img` or a.k.a $X$) by loadings (`pca.img$rotation` object or
+        a.k.a matrix of $\phi_{ij}$) and compare to computed principal
+        components (`pca.img$x` object or a.k.a $Z$'s): i.e. compute to verify
+        that 
+        $$ \|Z - X\Phi\|_F^2 \approx 0, \tag{up to numerical error}$$ 
+        where $\|M\|_F^2 = \sum_{i,j} M_{ij}^2$. [5]
+        
+        
+
+
+     #. Check that `rotation` of the `prcomp` output is indeed a rotation
+     matrix, say $Q$, by verifying a crucial property of orthonormal rotation
+     matrices: i.e.  $$\|Q^T Q - I\|_F^2 \approx 0 \tag{up to numerical
+     error}$$ [5]
+
+
+     #. This means we can approximately reconstruct original data using any
+    number of principal components we choose:
+    $$ Z\Phi^T - X\Phi\Phi^T = Z\Phi^T - X \approx Z[,1:m]\,\Phi[,1:m]^T - X $$
+    where $[,1:m]$ is `R` notation for taking submatrix of columns 1 through $m$. 
+    
+        Using this fact, reconstruct the image from 10 and 100 principal
+        components and plot the reconstructed image. [6]
+
+
+
+     #. Plot proportion of variance explained as function of number of
+     principal components and also cumulative proportional variance explained.
+     The function `summary()` returns helpful objects including PVE. [6]
+    
+        
+        Using this information, find out how many principal components are
+        needed to explain 90\% of the variance. [2]
+
+        
+    
+2. __(PSTAT 231 Students)__ Suppose $S=\Phi\Lambda\Phi^T$ is spectral
+   decomposition of sample covariance matrix $S = n^{-1}X^T X$, where $\Lambda$
+   is a diagonal matrix of eigenvalues $\lambda_1\geq \lambda_2\geq \dots\geq
+   \lambda_p > 0$, and $\Phi$ is matrix of eigenvectors.
+   
+    Show that sample variance of $m$-th principal component $Z_m=X\Phi_m$
+    (along $m$-th eigenvector $\Phi_m$) is given by 
+    
+    $$ \text{PVE}_m = \frac{\lambda_m}{\lambda_1+\lambda_2+\cdots+\lambda_p}.
+    $$
+
+    Therefore, proportion variance explained with the first $m$ eigenvectors is
+    given by
+
+    $$ \text{PVE}_{1:m} = \frac{\lambda_1+\lambda_2+\cdots+\lambda_m}
+    {\lambda_1+\lambda_2+\cdots+\lambda_p}, $$
+
+    where $m<p$. [10]
+
+
+--------------
+
+**Predicting Algae Blooms**[^1]
+
+In the previous homework, we performed basic explorotary data analysis for the
+**Algae Blooms** dataset. Some water samples contained unknown values in
+several chemicals. Missing values are quite common in real-world problems, and
+may prevent the use of certain data mining techniques that are not able to
+handle missing values. 
+
+In this homework, we are going to introduce various ways to deal with missing
+values. After all the missing values have been taken care of, we will build a
+model to investigate the relationship between the variable `a1` and other 11
+predictors (`season`, `size`, `speed`, `mxPH`, `mnO2`, `Cl`, `NO3`, `NH4`,
+`oPO4`, `PO4`, `Chla`) utilizing cross-validation and bootstrap in the next
+problem.
+
+The dataset can be read into R enviroment by the following codes:
+```{r load, message=F, warning=F}
+algae <- read.table('algaeBloom.txt',header=F,dec='.',
+                    col.names=c('season','size','speed','mxPH','mnO2','Cl','NO3','NH4','oPO4',
+                                'PO4','Chla','a1','a2','a3','a4','a5','a6','a7'),
+                    na.strings=c('XXXXXXX'))
+attach(algae)
+```
+
+**_Dealing with missing values_**
+
+3.     
+    #. How many observations contain missing values? How many missing values
+    are there in each variable? [5]
+
+
+
+    #. **Removing observations with missing values**: use `filter()` function
+    in `dplyr` package to observations with any missing value, and save the
+    resulting dataset (without missing values) as `algae.del`. Report how many
+    observations are in `algae.del`. [4] 
+    
+        Hint: `complete.cases()` may be useful.
+    
+    
+
+
+    #. \label{imputation} **Imputing unknowns with measures of central
+    tendency**: the simplest and fastest way of filling in (imputing) missing
+    values is to use some measures of central tendency such as mean, median and
+    mode.
+        
+        Use `mutate_each()` and `ifelse()` in `dplyr` to fill in missing values
+        for each chemical with its median, and save the imputed dataset as
+        `algae.med`. Report the number of observations in `algae.med`.  Display
+        the values of each chemical for the $48^{th}$, $62^{th}$ and $199^{th}$
+        obsevation in `algae.med`. [5]
+
+
+
+        This simple strategy, although extremely fast and thus appealing for
+        large datasets, imputed values may have large bias that can influence
+        our model fitting. An alternative for decreasing bias of imputed values
+        is to use relationships between variables.
+        
+    #. **Imputing unknowns using correlations**: another way to impute missing
+    values is to use correlation with another variable. For a highly
+    correlated pair of variables, we can fill in the unknown values by
+    predicting one based on the other with a simple linear regression model,
+    provided the two variables are not both unknown. 
+    
+        Compute pairwise correlation between all variables. [3]
+
+
+
+        Then, fill in the missing value for `PO4` based on `oPO4` in the
+        $28^{th}$ observation. What is the value you obtain? [3]
+        
+        Hint: use `lm()` and `predict()` function.
+
+
+
+**_Holdout, cross-validation (CV) and bootstrap methods_**
+    
+Using `algae.med` dataset obtained in \eqref{imputation}, we will build a model
+to predict `a1` based on 11 variables (`season`, `size`, `speed`, `mxPH`,
+`mnO2`, `Cl`, `NO3`, `NH4`, `oPO4`, `PO4`, `Chla`), and test generalization of
+model to data that have not been used for training.
+
+4. **Holdout method**: Holdout simply partitions data into randomly chosen
+   disjoint training and test sets. A model is trained on the training set, and
+   its performance is assessed with the test set (sometimes called the holdout
+   set).
+
+    #. \label{holdout} Run `set.seed(1)`, then, use `sample()` function to
+    randomly choose (without replacement) 80% of the observations to be the
+    training set.  Remaining 20% becomes the test set. 
+    
+        Create a linear model of 11 independent variables using `a1` as the
+        response. Then, compute mean square error of prediction with training
+        set (training error) as well as with test set (test error). [6]
+
+
+
+    #. Repeat \eqref{holdout} after `set.seed(2)`. Compare training and test
+    errors with those from above. [5]
+
+
+
+5. **Cross-validation method**: cross-validation (CV) improves on holdout
+   method by averaging randomness of "test set" due to partitioning. In CV,
+   each $k$ equally sized random partitions of data (chunks) are used as
+   heldout set (called validation set). After $k$ runs, average of validation
+   errors is used.
+
+    We will perform 5-fold cross-validation to compute the (average) validation
+    error, and compare it to the test error computed in part \eqref{holdout}. 
+    
+    #. \label{chunkids} First randomly partition data into 5 equal sized
+    chunks. 
+
+        Hint: a simple way to randomly assign each observation to a chunk is to
+        do the following. First, use `cut(..., label=FALSE)` to divide
+        observation ids (1, 2, \dots ) into equal numbers of chunk ids. Then,
+        randomize output of `cut()`by using `sample()`.
+       
+
+
+    #. Perform 5-fold cross-validation with training error and validation
+    errors of each chunk determined from \eqref{chunkids}. [12]
+
+        Since same computation is repeated 5 times, we can define the following
+        function for simplicity.
+
+```{r cvtemplate,indent=indent2}
+do.chunk <- function(chunkid, chunkdef, dat){  # function argument
+  
+    train = (chunkdef != chunkid)
+
+    Xtr = dat[train,1:11]  # get training set
+    Ytr = dat[train,12]  # get true response values in trainig set
+
+    Xvl = dat[!train,1:11]  # get validation set
+    Yvl = dat[!train,12]  # get true response values in validation set
+
+    lm.a1 <- lm(a1~., data = dat[train,1:12])
+    predYtr = predict(lm.a1)  # predict training values
+    predYvl = predict(lm.a1,Xvl)  # predict validation values
+
+    data.frame(fold = chunkid,
+               train.error = mean((predYtr - Ytr)^2), # compute and store training error
+               val.error = mean((predYvl - Yvl)^2))   # compute and store test error
+
+}
+```
+        
+        First argument `chunkid` indicates which chunk to use as validation set
+        (one of 1:5). Second argument `chunkdef` is chunk assignments from
+        \eqref{chunkids}. Third argument `dat` will be `algae.med` dataset.
+        
+        In order to repeatedly call `do.chunk()` for each value of `chunkid`,
+        use functions `lapply()` or `ldply()`. Note that `chunkdef` and `dat`
+        should be passed in as optional arguments (refer to help pages).
+
+        Write the code and print out 5 `train.error` and `val.error`.
+
+
+    #. \label{validationerror} Calculate training and validation error from
+    previous part by computing the average of individual errors from each of 5
+    runs. Compare to errors from \eqref{holdout}. Which do you expect to be
+    more reliable? Why? [6]
+
+
+6. **Bootstrap method**: a data can be considered as collection of random
+   samples from underlying process (or some true distribution). Obtaining
+   additional data is often not feasible, so we randomly sample from our dataset
+   instead of "underlying process." Each sampling yields a _bootstrap dataset_
+   and many such datasets are used for quantifying randomness we may see if we
+   observe additional datasets. 
+
+    Creating a bootstrap dataset is simple. Use `sample()` to randomly pick,
+    _with replacement_, rows of original dataset. Each bootstrap dataset has
+    same number of observations as the original.
+
+    #. \label{bootstrapmodel}Based on 100 bootstrap datasets, compute empirical
+    95% confidence interval for each regression coefficient. Show the average
+    best regression model (whose coefficients are the mean of all 100 bootstrap
+    coefficients).  [12]  
+       
+        Hint: You can take 4 steps to implement the process: 1) generate 100
+        bootstrap datasets, 2) write your own loop to build a linear regression
+        model based on each boostrap dataset. Each time you will obtain a set
+        of regression coefficients. 3) compute the empirical confidence
+        interval for each regression coefficient. 4) The best model can be
+        obtained by taking the average of 100 coefficients. Write out the best
+        model.
+       
+
+
+
+    #. __(PSTAT 231 Students)__ Then compare the theoretical confidence
+    intervals given by `lm()`. What may be sources of these differences? What
+    assumptions are violated? [10]
+
+
+7. **Test error on additional data**: true test error is computed with data
+   that has _not_ been used to train the model.
+
+    #. Additional data in file `algaeTest.txt` will be our test data.
+
+```{r real,indent=indent2,message=F,warning=F}
+algae.Test <- read.table('algaeTest.txt',header=F,dec='.',
+                    col.names=c('season','size','speed','mxPH','mnO2','Cl','NO3',
+                                'NH4','oPO4','PO4','Chla','a1'),
+                    na.strings=c('XXXXXXX'))
+```
+       
+        Using the averaged "best model" from \eqref{bootstrapmodel}, calculate
+        the test error. [10]
+       
+
+        
+    #. How does the test error compare to errors from holdout \eqref{holdout}
+    and cross-validation \eqref{validationerror}? Briefly comment on pros and
+    cons of each approach. [5]
+
+
+
+
+
+
+
+
+[^1]: This case study will introduce you to some basic steps of data mining: data pre-processing, exploratory data analysis, and predictive model construction throughout the quarter. For more information (background, goal and dataset description), please revisit homework 1.
+
+
